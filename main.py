@@ -1,11 +1,12 @@
 import os
+import time
 import argparse
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from libs.model import Generator, Discriminator, GeneratorLoss
 from libs.data_utils import TrainDataset, ValDataset, CUDAPrefetcher
-from libs.loop import train, val
+from libs.loop import train, val, savemodel
 
 parser = argparse.ArgumentParser(
     description= "srgan v3"
@@ -17,7 +18,7 @@ parser.add_argument(
     "--train_dirs", type=str, default="../data/train"
 )
 parser.add_argument(
-    "--val_dirs", type=str, default="../data/train"
+    "--val_dirs", type=str, default="../data/val"
 )
 parser.add_argument(
     "--upscale_factor", type=int, default=4
@@ -26,12 +27,23 @@ parser.add_argument(
     "--crop_size", type=int, default=88
 )
 parser.add_argument(
-    "--num_epochs", type=int, default=100
+    "--num_epochs", type=int, default=20
+)
+parser.add_argument(
+    "--save_interval", type=int, default=10
+)
+parser.add_argument(
+    "--save_path", type=str, default="./weights"
 )
 
 
 if __name__ == "__main__":
     opt = parser.parse_args()
+    
+    if not os.path.exists(opt.save_path):
+        os.mkdir(opt.save_path)
+    save_path = opt.save_path
+    
     traindataset = TrainDataset(
         img_dir = opt.train_dirs,
         crop_size = opt.crop_size,
@@ -87,7 +99,7 @@ if __name__ == "__main__":
         discriminator.parameters(),
     )
     
-    
+    main_start = time.time()
     for epoch in range(1, opt.num_epochs + 1):
         train(
             trainloader,
@@ -109,4 +121,19 @@ if __name__ == "__main__":
             epoch,
             opt.num_epochs
         )
+        if epoch % opt.save_interval == 0:
+            g_name = f"g_{epoch}_{opt.num_epochs}.pth"
+            d_name = f"d_{epoch}_{opt.num_epochs}.pth"
+            g_name = os.path.join(save_path, g_name)
+            d_name = os.path.join(save_path, d_name)
+            savemodel(
+                generator,
+                discriminator,
+                g_optimizer,
+                d_optimizer,
+                g_name,
+                d_name
+            )
     
+    print(f"경과시간 : {time.time() - main_start:.1f}sec")
+    exit()

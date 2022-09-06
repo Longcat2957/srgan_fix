@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import torch
 import torch.nn as nn
@@ -9,6 +10,7 @@ from torchmetrics import functional as tmf
 from .data_utils import CUDAPrefetcher
 from .model import Generator, GeneratorLoss
 from .model import Discriminator
+from .string import myprinter, trainstring, valstring
 
 
 def train(
@@ -22,11 +24,15 @@ def train(
     device:torch.device,
     epoch:int,
     total_epochs:int) -> None:
-    
-    print(f"# start train {epoch}/{total_epochs}")
+
     generator.train()
     discriminator.train()
     epoch_start = time.time()
+    # display
+    mp = myprinter(
+        color="GREEN", back="BLACK", style="BRIGHT", indent=1
+    )
+    ts = trainstring(epoch, total_epochs, trainloader.original_dataloader.dataset.__len__())
     iter = 0
     trainloader.reset()
     batch_data = trainloader.next()
@@ -66,6 +72,11 @@ def train(
         
         iter_end = time.time() - iter_start
         # display something
+        ts.update(
+            d_loss_total, g_loss, d_out_real, d_out_fake, batch_size, iter_end
+        )
+        string = ts.getstring()
+        mp(string)
         batch_data = trainloader.next()
         
         
@@ -76,15 +87,17 @@ def val(
     device:torch.device,
     epoch:int,
     total_epochs:int) -> None:
-    
-    print(f"# start val {epoch}/{total_epochs}")
+    mp = myprinter(
+        color="YELLOW", back="BLACK", style="BRIGHT", indent=1
+    )
+    vs = valstring(epoch, total_epochs, valloader.original_dataloader.dataset.__len__())
     generator.eval()
     discriminator.eval()
     epoch_start = time.time()
-    with torch.no_grad():
-        valloader.reset()
-        batch_data = valloader.next()
-        while batch_data is not None:
+    valloader.reset()
+    batch_data = valloader.next()
+    while batch_data is not None:
+        with torch.no_grad():
             iter_start = time.time()
             lr = batch_data["lr"].to(device=device, memory_format=torch.channels_last, non_blocking=True)
             bi = batch_data["sr"].to(device=device, memory_format=torch.channels_last, non_blocking=True)
@@ -92,11 +105,37 @@ def val(
             batch_size = lr.size(0)
             
             sr = generator(lr)
-            
-            psnr_bicubic_hr = tmf.peak_signal_noise_ratio(bi.detach(), hr.detach())
-            psnr_sr_hr = tmf.peak_signal_noise_ratio(sr.detach(), hr.detach())
-            
-            ssim_bicubic_hr = tmf.structural_similarity_index_measure(bi, hr)
-            ssim_sr_hr = tmf.structural_similarity_index_measure(sr, hr)
-            
+            bicubic_result = vs.calculate(
+                bi, hr
+            )
+            sr_result = vs.calculate(
+                sr, hr
+            )
             iter_end = time.time() - iter_start
+            
+            vs.update(
+                bicubic_result["psnr"], bicubic_result["ssim"],
+                sr_result["psnr"], sr_result["ssim"],
+                batch_size, iter_end
+            )
+            string = vs.getstring()
+            mp(string)
+            batch_data = valloader.next()
+
+
+def savemodel(generator:nn.Module, discriminator:nn.Module,
+              g_optimizer:torch.optim.Optimizer, d_optimizer:torch.optim.Optimizer,
+              g_name:str, d_name:str) -> None:
+    g_parameter = generator.state_dict()
+    d_parameter = discriminator.state_dict()
+    g_optimizer = g_optimizer.state_dict()
+    d_optimizer = d_optimizer.state_dict()
+    
+    g_results = {
+        "model_weight" : g_parameter, "optimizer_weight" : g_optimizer
+    }
+    d_results = {
+        "model_weight" : d_parameter, "optimizer_weight" : d_optimizer
+    }
+    torch.save(g_results, g_name)
+    torch.save(d_results, d_name)
