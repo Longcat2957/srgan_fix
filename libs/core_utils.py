@@ -5,12 +5,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from torchmetrics import functional as tmf
-
 from .data_utils import CUDAPrefetcher
-from .model import Generator, GeneratorLoss
-from .model import Discriminator
-from .string import myprinter, trainstring, valstring
+from .sr_baseline import Generator, GeneratorLoss
+from .sr_baseline import Discriminator
+from .my_string import myprinter, trainstring, valstring
 
 
 def train(

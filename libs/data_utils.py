@@ -121,24 +121,3 @@ class CUDAPrefetcher:
 
     def __len__(self) -> int:
         return len(self.original_dataloader)
-
-
-if __name__ == "__main__":
-    test_image_dirs = "../../data/train"
-    traindset = TrainDataset(
-        img_dir = test_image_dirs,
-        crop_size = 88,
-        upscale_factor= 4
-    )
-    something = traindset[0]
-    lr, hr = something["lr"], something["hr"]
-    #print(lr, hr)
-    
-    valdset = ValDataset(
-        img_dir = test_image_dirs,
-        upscale_factor=4
-    )
-    something2 = valdset[0]
-    hr = something2["hr"]
-    sr, lr = something2["sr"], something2["lr"]
-    print(sr, lr)

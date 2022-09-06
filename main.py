@@ -4,12 +4,19 @@ import argparse
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from libs.model import Generator, Discriminator, GeneratorLoss
-from libs.data_utils import TrainDataset, ValDataset, CUDAPrefetcher
-from libs.loop import train, val, savemodel
+import libs
+from libs.core_utils import *
+from libs.data_utils import *
+from libs.my_string import *
+from libs.sr_baseline import *
+from libs.sr_swinir import *
+from libs.tool import *
 
 parser = argparse.ArgumentParser(
     description= "srgan v3"
+)
+parser.add_argument(
+    "--mode", type=str, default="baseline"
 )
 parser.add_argument(
     "--batch_size", type=int, default=64
@@ -36,6 +43,7 @@ parser.add_argument(
     "--save_path", type=str, default="./weights"
 )
 
+torch.backends.cudnn.benchmark = True
 
 if __name__ == "__main__":
     opt = parser.parse_args()
@@ -80,10 +88,18 @@ if __name__ == "__main__":
     valloader = CUDAPrefetcher(
         valdloader, device=device
     )
-    
-    generator = Generator(
-        scale_factor = opt.upscale_factor
-    )
+    if opt.mode == "baseline":
+        generator = Generator(
+            scale_factor = opt.upscale_factor
+        )
+    elif opt.mode == "swinir":
+        generator = getSwinIR(
+            upscale_factor = opt.upscale_factor
+        )
+    else:
+        generator = Generator(
+            scale_factor = opt.upscale_factor
+        )
     discriminator = Discriminator()
     g_criterion = GeneratorLoss()
     d_criterion = nn.MSELoss()

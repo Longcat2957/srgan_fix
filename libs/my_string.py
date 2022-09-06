@@ -1,5 +1,5 @@
 import torch
-import torchmetrics.functional as tmf
+import torchmetrics.functional as tmff
 import sys
 from colorama import Fore, Back, Style
 
@@ -115,10 +115,10 @@ class valstring(object):
         self.batchmeter = AverageMeter()
     @staticmethod
     def calculate(preds:torch.Tensor, target:torch.Tensor) -> dict:
-        psnr = tmf.peak_signal_noise_ratio(
+        psnr = tmff.peak_signal_noise_ratio(
             preds = preds.detach().cpu(), target = target.detach().cpu()
         )
-        ssim = tmf.structural_similarity_index_measure(
+        ssim = tmff.structural_similarity_index_measure(
             preds = preds.detach().cpu(), target = target.detach().cpu()
         )
         return {"psnr" : psnr, "ssim" : ssim}
