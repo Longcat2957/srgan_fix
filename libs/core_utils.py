@@ -119,6 +119,7 @@ def val(
             string = vs.getstring()
             mp(string)
             batch_data = valloader.next()
+    return {"psnr" : vs.sr_psnr.avg, "ssim" : vs.sr_ssim.avg}
 
 
 def savemodel(generator:nn.Module, discriminator:nn.Module,

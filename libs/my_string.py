@@ -100,7 +100,7 @@ class trainstring(object):
             " "+f"D(x) : {self.d_score.avg:.4f}" + \
             " "+f"D(G(z)) : {self.g_score.avg:.4f}" + \
             "\t"+f"{self.itermeter.avg:.2f} iter/sec" + \
-                f"\t[{self.itermeter.sum:.0f}/{self.datalength}]"
+                f"\t[{self.batchmeter.sum:.0f}/{self.datalength}]"
         return string
 
 class valstring(object):
