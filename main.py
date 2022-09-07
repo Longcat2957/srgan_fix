@@ -42,6 +42,12 @@ parser.add_argument(
 parser.add_argument(
     "--save_path", type=str, default="./weights"
 )
+parser.add_argument(
+    "--g_weight", type=str, default=None
+)
+parser.add_argument(
+    "--d_weight", type=str, default=None
+)
 
 torch.backends.cudnn.benchmark = True
 
@@ -103,6 +109,16 @@ if __name__ == "__main__":
     discriminator = Discriminator()
     g_criterion = GeneratorLoss()
     d_criterion = nn.MSELoss()
+
+    # load pretrained weight
+    if opt.g_weight is not None:
+        g_dict_path = opt.g_weight
+        g_dict = torch.load(g_dict_path)
+        generator.load_state_dict(g_dict["model_weight"])
+    if opt.d_weight is not None:
+        d_dict_path = opt.d_weight
+        d_dict = torch.load(d_dict_path)
+        discriminator.load_state_dict(d_dict["model_weight"])
     
     # load to device
     generator, discriminator = generator.to(device), discriminator.to(device)
@@ -115,7 +131,19 @@ if __name__ == "__main__":
         discriminator.parameters(),
     )
     
+    # load pretrained weight
+    if opt.g_weight is not None:
+        g_dict_path = opt.g_weight
+        g_dict = torch.load(g_dict_path)
+        g_optimizer.load_state_dict(g_dict["optimizer_weight"])
+    if opt.d_weight is not None:
+        d_dict_path = opt.d_weight
+        d_dict = torch.load(d_dict_path)
+        d_optimizer.load_state_dict(d_dict["optimizer_weight"])
+    
     main_start = time.time()
+    best_psnr = 0.0
+    best_ssim = 0.0
     for epoch in range(1, opt.num_epochs + 1):
         train(
             trainloader,
@@ -129,7 +157,7 @@ if __name__ == "__main__":
             epoch,
             opt.num_epochs
         )
-        val(
+        val_results_dict = val(
             valloader,
             generator,
             discriminator,
@@ -137,6 +165,20 @@ if __name__ == "__main__":
             epoch,
             opt.num_epochs
         )
+        if val_results_dict["psnr"] > best_psnr and val_results_dict["ssim"] > best_ssim:
+            best_psnr, best_ssim = val_results_dict["psnr"], val_results_dict["ssim"]
+            g_name = f"g_best_{opt.num_epochs}.pth"
+            d_name = f"d_best_{opt.num_epochs}.pth"
+            g_name = os.path.join(save_path, g_name)
+            d_name = os.path.join(save_path, d_name)
+            savemodel(
+                generator,
+                discriminator,
+                g_optimizer,
+                d_optimizer,
+                g_name,
+                d_name
+            )
         if epoch % opt.save_interval == 0:
             g_name = f"g_{epoch}_{opt.num_epochs}.pth"
             d_name = f"d_{epoch}_{opt.num_epochs}.pth"
